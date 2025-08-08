@@ -1,5 +1,5 @@
 # Blog
-Just trying to do some.
+Just trying to do something than wait.
 
 If you need a sequence for reading, it will be provided in the README.md file.
 
