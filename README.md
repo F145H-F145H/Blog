@@ -1,9 +1,10 @@
 # Blog
 Just trying to do some.
 
-If you need a sequence for reference, it will be provided in the README.md file.
+If you need a sequence for reading, it will be provided in the README.md file.
 
-all files managed like
+all files supposed to be managed like
+
 ```
 .
 ├── README.md
