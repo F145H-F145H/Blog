@@ -1,4 +1,4 @@
-利用binfmt_misc机制加快CGI调试
+# 利用binfmt_misc机制加快CGI调试
 
 学习参考文章 
 [ 奇安信天工实验室 利用binfmt_misc机制加快CGI调试](https://mp.weixin.qq.com/s?__biz=Mzk0OTU2ODQ4Mw==&mid=2247487412&idx=1&sn=c54f5b26b7a14a4ec76dfdf866684f57&chksm=c2ebddafc36bbf1ac3308a5cda98e2e478cced85a3a8dc1309c3c40c9ebfb1984273414a5833)

@@ -1,9 +1,15 @@
-# Blog
-Just trying to do something than waiting.
+# F145H的博客仓库
 
-If you need a sequence for reading, it will be provided in the README.md file.
+本仓库内容用于记录和整理我学习所得，难免存在一些错误和问题，如果您有什么建议或发现了问题，欢迎通过 issue 或 pull request 与我联系。
 
-all files supposed to be managed like
+其他联系方式：
+
+- QQ：`2767054207`
+- 邮箱：[`f145h@qq.com`](mailto:f145h@qq.com)
+
+---
+
+通常来说，每个子目录下的文件结构如下，如果你需要寻找文件，这可以作为参考，需要帮助请查看README.md。
 
 ```
 .
@@ -21,5 +27,3 @@ all files supposed to be managed like
     ├── doc2-1-1.png
     └── docx-y-z.png
 ```
-
----
