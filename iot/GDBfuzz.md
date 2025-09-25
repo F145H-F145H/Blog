@@ -4,172 +4,96 @@
 
 相关论文在 `docs/Fuzzing Embedded Systems using Debug Interfaces.pdf`
 
-## 环境安装
+## GDBfuzz 的安装和测试
 
-下载 `GDB` `libgmp` `mpfr` 的源码和交叉编译工具以构建适用于当前设备架构的 `gdbserver` 程序。
+首先，从最基础的安装和使用学习 gdbfuzz 这个工具。
 
-- https://ftp.gnu.org/gnu/gdb/
-- https://gmplib.org/
-- https://gitlab.inria.fr/mpfr/mpfr
+```
+git clone https://github.com/F145H-F145H/gdbfuzz
+cd gdbfuzz
+```
+
+根据 `README.md` 文档，我们最好使用一个独立的 python 环境，且最好是 3.10 版本，笔者在 python3.13 环境下安装依赖时遇到了错误。在 `make` 的过程中，如果遇到错误或网络问题等，可以根据 `Makefile` 文件手动解决问题。
 
 ```bash
-axel -n 4 https://sourceware.org/pub/gdb/releases/gdb-16.3.tar.gz
-axel -n 4 https://gitlab.inria.fr/mpfr/mpfr/-/archive/master/mpfr-master.tar.gz
-axel -n 4 https://gmplib.org/download/gmp/gmp-6.3.0.tar.xz
-axel -n 4 https://buildroot.org/downloads/buildroot-2025.05.1.tar.gz
+conda create -n python310 python=3.10
+conda activate python310 
+# 这里我使用 miniconda 管理python版本，可以在这里进行安装： 
+# https://www.anaconda.com/docs/getting-started/miniconda/install#linux-2
 
-tar -xf ./gdb-16.3.tar.gz
-tar -xf ./mpfr-master.tar.gz
-tar -xf ./gmp-6.3.0.tar.xz
+python3 -m venv .venv
+source .vnev/bin/activate # 使用本地虚拟环境
+
+make
+chmod a+x ./src/GDBFuzz/main.py
+```
+
+安装完成后，我们可以由简到繁地进行测试。首先，我们打开./为了进一步观察 fuzz 过程，我们使用 Ghidra 打开测试程序，使用 `Script Manager`，搜索 `bridge` 关键字，找到 `ghidra_bridge_port.py` 设置端，然后运行 `ghidra_bridge_server_background.py`，注意 .cfg 文件的端口需要和这里保持一致。
+
+![image](.pictures/GDBfuzz-1-1.png)
+
+然后使用 `python3 ./src/GDBFuzz/main.py --config ./example_programs/fuzz_json.cfg` 运行fuzz程序，一段时间后，我们可以看到 gdbfuzz 在不断切换和测试新的断点。被命中的部分在 Ghidra 被标记为绿色。
+
+![image](.pictures/GDBfuzz-1-2.png)
+
+![image](.pictures/GDBfuzz-1-3.png)
+
+在运行完 `total_runtime` 时间后，可以通过检查 `output_directory` 内的信息查看结果，和其他fuzz工具一样，我们尤其关注 `crashes` 目录。
+
+进一步的，我们编译一个简单的 `buggy_webserver` 程序，用于模拟一个最小化的真实环境，包含一个简单的服务。
+
+### 交叉编译工具环境
+
+下载交叉编译工具以构建适用于当前设备架构的 `gdbserver` 等程序。
+
+```bash
+axel -n 4 https://buildroot.org/downloads/buildroot-2025.05.1.tar.gz
 tar -xf ./buildroot-2025.05.1.tar.gz
 ```
 
-我们本次实验的目标为 DIR-816路由器，根据先前的信息可以知道，通常是 **32位** 的 **`MIPS`** 小端序环境，通过cpuinfo我们得到更加详细的信息，可以帮助用于编译出适合于这个环境的程序。第一步，根据 cpuinfo 和我们的需要设置 `buildroot` 配置（注意，在 `toolchain` 中需要打开c++的支持和宽字符支持，否则可能无法编译新版本的`gdb`）。然后修改和运行自动脚本便可完成 `gdb` 依赖和本体的编译。
+我们本次实验的目标为 DIR-816路由器，根据先前的信息可以知道，其运行的程序通常是 `32位` `MIPS` 小端序的，通过 `/proc/cpuinfo` 我们得到更多详细的信息，例如这个机器支持几个硬件断点，对于gdbfuzz来说，这是至关重要的。
 
-![image](.pictures/GDBfuzz-1-1.png)
+第一步，根据需要设置 `buildroot` 配置（注意，在 `toolchain` 中需要打开 **c++支持** 和 **宽字符支持** ，否则可能无法编译新版本的 `gdb`）。然后修改和运行自动脚本便可完成 `gdb` 依赖和本体的编译。
+
+![image](.pictures/GDBfuzz-1-4.png)
+
+设置
+
+- Target options  --->
+    - Target Architecture (MIPS (little endian))
+    - Target Architecture Variant (Generic MIPS32R2)
+- Toolchain  --->
+    - C library (uClibc-ng)
+    - -*- Enable WCHAR support
+    - [*] Enable toolchain locale/i18n support
+    - [*] Thread library debugging
+    - [*] Enable C++ support
+    - [*] Build cross gdb for the host
+- Target packages  --->
+    - Debugging, profiling and benchmark  --->
+        - [*] gdb
+        - -*-   gdbserver
 
 ```
 cd buildroot-2025.05.1
 make menuconfig
-make
-
-autobuild.sh
-```
-帮助快速修改和配置环境的小脚本 : P
-
-```bash
-#!/bin/bash
-
-set -e
-
-# 清除可能干扰的环境变量
-unset LDFLAGS
-unset CPPFLAGS
-unset CFLAGS
-unset CXXFLAGS
-
-# 设置构建平台
-BUILD="x86_64-pc-linux-gnu"
-
-# 设置目标平台
-TOOLCHAIN_PATH="/opt/cross-gdb/buildroot-2025.05.1/output/host"
-TARGET="mipsel-buildroot-linux-uclibc"
-
-# 将工具链添加到PATH
-export PATH="$TOOLCHAIN_PATH/bin:$PATH"
-
-# 设置工作路径
-WORK_DIR="/opt/cross-gdb"
-BACKUP_DIR="$WORK_DIR/backup"
-OUTPUT_DIR="$WORK_DIR/output-$TARGET"
-
-mkdir -p "$OUTPUT_DIR"
-
-# 设置交叉编译环境
-export CC="${TARGET}-gcc"
-export CXX="${TARGET}-g++"
-export CPP="${TARGET}-cpp"
-export AR="${TARGET}-ar"
-export AS="${TARGET}-as"
-export LD="${TARGET}-ld"
-export RANLIB="${TARGET}-ranlib"
-export STRIP="${TARGET}-strip"
-
-# 配置选项
-CONFIGURE_OPTS="--prefix=$OUTPUT_DIR --build=$BUILD --host=$TARGET --target=$TARGET"
-MAKE_OPTS="-j$(nproc)"
-
-# 函数：清理并恢复源代码
-clean_and_restore() {
-    local lib_name=$1
-    local lib_dir=$2
-    local backup_file=$3
-
-    echo "清理并恢复 $lib_name..."
-
-    cd "$WORK_DIR"
-    rm -rf "$lib_dir"
-    tar -xf "$BACKUP_DIR/$backup_file"
-
-    echo "$lib_name 恢复完成"
-}
-
-# 函数：编译和安装库
-compile_and_install() {
-    local lib_name=$1
-    local lib_dir=$2
-    local extra_opts=$3
-    
-    cd "$WORK_DIR/$lib_dir"
-    make distclean 2>/dev/null || true
-    rm -f config.cache 2>/dev/null || true
-    ./configure $CONFIGURE_OPTS $extra_opts
-    make $MAKE_OPTS
-    make install
-    
-    echo "$lib_name 编译完成"
-}
-
-# 编译 GMP
-clean_and_restore "GMP" "gmp-6.3.0" "gmp-6.3.0.tar.xz"
-compile_and_install "GMP" "gmp-6.3.0" ""
-
-# 设置环境变量以便后续编译能找到 GMP
-export CPPFLAGS="-I$OUTPUT_DIR/include"
-export LDFLAGS="-L$OUTPUT_DIR/lib"
-
-# 编译 MPFR
-clean_and_restore "MPFR" "mpfr-master" "mpfr-master.tar.gz"
-cd $WORK_DIR/mpfr-master
-autoreconf -if
-compile_and_install "MPFR" "mpfr-master" "--with-gmp=$OUTPUT_DIR"
-
-# 编译 GDB
-clean_and_restore "GDB" "gdb-16.3" "gdb-16.3.tar.gz"
-cd "$WORK_DIR/gdb-16.3"
-
-make distclean 2>/dev/null || true
-
-# 添加针对 MIPS uClibc 的特殊配置
-export CXXFLAGS="-std=c++17 -march=24kc -mtune=24kc -mips16 -mdsp"
-export CFLAGS="-march=24kc -mtune=24kc -mips16 -mdsp"
-export LDFLAGS="-L$OUTPUT_DIR/lib -static"
-
-./configure \
-    --build=$BUILD \
-    --host=$TARGET \
-    --target=$TARGET \
-    --prefix=$OUTPUT_DIR \
-    --with-gmp="$OUTPUT_DIR" \
-    --with-mpfr="$OUTPUT_DIR" \
-    --enable-static \
-    --disable-shared 
-
-make $MAKE_OPTS
-make install
-
-# 剥离二进制文件以减小大小
-if command -v "${TARGET}-strip" >/dev/null 2>&1; then
-    "${TARGET}-strip" "$OUTPUT_DIR/bin/gdb"
-    "${TARGET}-strip" "$OUTPUT_DIR/bin/gdbserver"
-fi
-
-echo "编译完成！$TARGET 的 GDB 和 GDBServer 位于: $OUTPUT_DIR/bin/"
+make -j16
 ```
 
-这一部配置完成获得可执行文件后，我们将其放到 tftp 服务器中，使用 `minicom` 连接路由器，下载 `gdbserver` 并运行检测到正确回显和连接便说明我们已经完成了 `gdbserver` 的配置工作。
+编译完成获得可执行文件后，我们将其放到本地 `tftp` 服务中，使用 `minicom` 连接路由器，下载 `gdbserver` 和 `server` 并运行检测到正确回显和连接便说明我们已经完成了 `gdbserver` 的配置工作。
 
 ```bash
 iptables -A INPUT -p all -j ACCEPT # 防火墙全开
 
 tftp -g -r gdbserver -l /tmp/gdbserver 192.168.0.2 # 获取 gdbserver
+tftp -g -r server -l /tmp/server 192.168.0.2 # 获取 server测试程序
 chmod +x /tmp/gdbserver 
-/tmp/gdbserver 0.0.0.0:1451 --attach 42 & # 后台运行（前台运行可能会卡死 minicom
+chmod +x /tmp/server 
+/tmp/gdbserver :1451 /tmp/server &
 ```
 
-```bash
-gdb
-target remote 192.168.0.1:1451 # 连接 gdbserver
-```
+首先，运行并测试程序server功能：
 
-![image](.pictures/GDBfuzz-1-2.png)
+![image](.pictures/GDBfuzz-1-5.png)
+
+然后，配置gdbserver，使用gdbserver attach到这个程序。
