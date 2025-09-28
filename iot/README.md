@@ -7,9 +7,8 @@
 文件编写顺序和标题：
 
 1. Cisco_RV340.md # Cisco RV340利用链研究
-2. Misc.md # IoT 相关基础知识杂谈
-3. Cisco_RV160.md # Cisco RV160W 固件模拟
-4. CVE-2025-5623.md # DIR816路由器栈溢出复现和深入探索
-5. binfmt_misc.md # 利用binfmt_misc机制加快CGI调试
+2. Cisco_RV160.md # Cisco RV160W 固件模拟
+3. CVE-2025-5623.md # DIR816 路由器栈溢出复现和深入探索
+4. LD_PRELOAD.md # 关于 LD_PRELOAD 机制的简单研究
 
 ---
